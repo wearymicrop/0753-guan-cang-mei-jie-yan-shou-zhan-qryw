@@ -4,7 +4,9 @@ from .modules.m3_mapping.service import map_targets
 from .modules.m4_fixity.service import scan
 from .modules.m5_drift.service import compare_copies
 from .modules.m6_reconcile.service import reconcile
+from .modules.m8_signoff.service import adjudicate
 
 TABLES = ('catalogs','objects','routes','replicas')
 STAGES = (('batches',resolve),('manifest',ingest),('mapping',map_targets),
-          ('fixity',scan),('drift',compare_copies),('reconcile',reconcile))
+          ('fixity',scan),('drift',compare_copies),('reconcile',reconcile),
+          ('signoff',adjudicate))

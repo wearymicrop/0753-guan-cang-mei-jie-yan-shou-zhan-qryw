@@ -15,6 +15,7 @@
 | M5 副本漂移 | 比较两层副本与固化值 | `GET /api/drift/{sample}` | `app/modules/m5_drift/classify.py` | `tests/test_drift.py` |
 | M6 迁移勾稽 | 复核原件集合及状态计数 | `GET /api/reconcile/{sample}` | `app/modules/m6_reconcile/totals.py` | `tests/test_reconcile.py` |
 | M7 复核封存 | 复算、签署、下载快照 | `POST /api/runs` | `app/modules/m7_archive/service.py` | `tests/test_archive.py` |
+| M8 签收裁决 | 裁决可签收范围与隔离观察 | `GET /api/signoff/{sample}` | `app/modules/m8_signoff/classify.py` | `tests/test_signoff.py` |
 
 ## 陷阱登记
 
@@ -33,3 +34,4 @@
 | TRAP-23 | 版本恰好交接 | 同时激活两版 | 使用半开区间 | `app/modules/m1_batches/service.py` | `tests/test_batches.py::test_half_open_boundary_selects_new_release` |
 | TRAP-25 | 两版有效期重叠 | 按文件次序选版本 | 拒绝选择并报告两版 | `app/modules/m1_batches/service.py` | `tests/test_batches.py::test_catalog_overlap_has_no_winner` |
 | TRAP-26 | 提交旧摘要 | 签署错误证据 | 返回冲突 | `app/modules/m7_archive/service.py` | `tests/test_archive.py::test_signature_requires_current_digest` |
+| TRAP-27 | 副本先漂移后恢复 | 一次验签成功即签收 | 漂移后须连续两个不同时刻对平，否则隔离观察 | `app/modules/m8_signoff/classify.py` | `tests/test_signoff.py::test_single_recovery_cannot_erase_drift` |

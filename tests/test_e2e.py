@@ -1,6 +1,6 @@
 def test_module_previews_match_archived_run(client):
     run=client.post('/api/runs',json={'sample':'dirty'}).json()
-    for stage in ('batches','manifest','mapping','fixity','drift','reconcile'):
+    for stage in ('batches','manifest','mapping','fixity','drift','reconcile','signoff'):
         answer=client.get(f'/api/{stage}/dirty')
         assert answer.status_code==200 and answer.json()==run['result'][stage]
 

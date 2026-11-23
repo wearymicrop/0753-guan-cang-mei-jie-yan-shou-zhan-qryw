@@ -1,4 +1,4 @@
-export const names = {verified:'已验',pending:'待补',conflict:'冲突',unavailable:'隔离'};
+export const names = {verified:'已验',pending:'待补',conflict:'冲突',unavailable:'隔离',signable:'可签收',quarantine:'隔离观察',stable:'稳定',recovering:'观察中',blocked:'受阻'};
 export const tiers = {online:'阅览副本',vault:'冷存副本'};
 export const safe = value => String(value ?? '—').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 export const badge = (state, text) => `<span class="flag ${safe(state)}">${safe(text ?? names[state])}</span>`;
@@ -21,4 +21,13 @@ export function compare(row) {
   return '<div class="paired">'+row.copies.map(copy=>`<article class="copy"><h3>${tiers[copy.tier]} ${badge(copy.state)}</h3>
     <p class="path">${safe(copy.path)}</p><code class="${copy.state==='conflict'?'mismatch':''}">${safe(copy.sha256)}</code>
     ${list([['判定',copy.code ?? '摘要一致'],['实测字节',copy.bytes],['路由行',copy.route_lines.join('、') || '—'],['副本行',copy.replica_lines.join('、') || '—'],['观测时刻',copy.observed]])}</article>`).join('')+'</div>';
+}
+
+export function decide(row) {
+  const head = `<div class="stamp"><strong>${safe(row.object_id)} · ${safe(row.path)} ${badge(row.verdict)}</strong>
+    ${list([['漂移归类',names[row.state]],['清单数据行',row.source_lines.join('、')]])}</div>`;
+  const copies = row.copies.length ? '<div class="paired">'+row.copies.map(copy=>`<article class="copy"><h3>${tiers[copy.tier]} ${badge(copy.stability)}</h3>
+    ${list([['连续对平',copy.matches+' 次'],['漂移记录',copy.drifts+' 次'],['最近漂移',copy.last_drift ?? '—'],['稳定性依据',copy.basis ?? '当前未对平，见受阻原因']])}</article>`).join('')+'</div>' : '';
+  const blocked = row.blockers.length ? `<ul class="blockers">${row.blockers.map(item=>`<li>${safe(item.detail)}</li>`).join('')}</ul>` : '<p class="signable-note">两副本均对平且证据持续稳定，可进入签收范围。</p>';
+  return head+copies+blocked;
 }

@@ -1,7 +1,7 @@
-import {badge, compare, grid, list, matrix, safe, tiers} from './cells.js';
+import {badge, compare, decide, grid, list, matrix, safe, tiers} from './cells.js';
 
 const $ = selector => document.querySelector(selector);
-const modules = {batches:'馆藏批次',manifest:'固化清单',mapping:'路由映射',fixity:'字节验签',drift:'副本漂移',reconcile:'迁移勾稽',archive:'复核封存'};
+const modules = {batches:'馆藏批次',manifest:'固化清单',mapping:'路由映射',fixity:'字节验签',drift:'副本漂移',reconcile:'迁移勾稽',signoff:'签收裁决',archive:'复核封存'};
 const tables = {catalogs:'批次版本',objects:'原件清单',routes:'映射规则',replicas:'副本记录'};
 const data = {result:JSON.parse($('#initial').textContent), filter:'all', object:'0003', section:'drift', run:null, busy:false};
 
@@ -20,6 +20,10 @@ function inspect(row) {
   }
   if (!row) return '<p class="empty">选中原件查看证据。</p>';
   const head = itemHeader(row);
+  if (section === 'signoff') {
+    const verdict = result.signoff.rows.find(item=>item.object_id===row.object_id);
+    return verdict ? decide(verdict) : '<p class="empty">此原件没有裁决记录。</p>';
+  }
   if (section === 'manifest') return head+grid(['清单行','原始路径','申报摘要'],row.source_records.map(item=>[item.line,item.raw.path,item.raw.sha256]));
   if (section === 'mapping') return head+grid(['目标层','目标路径','路由行','判定'],row.copies.map(copy=>[tiers[copy.tier],copy.path,copy.route_lines.join('、'),copy.code ?? '映射命中']));
   if (section === 'fixity') return head+grid(['副本层','数据行','字节','观测摘要'],row.copies.flatMap(copy=>copy.history.map(observation=>[tiers[copy.tier],observation.line,observation.bytes,observation.sha256])));
@@ -28,10 +32,11 @@ function inspect(row) {
 function paint() {
   const {result,section} = data;
   const summary = result.reconcile.totals;
-  const rows = result.drift.rows.filter(row=>data.filter==='all'||row.state===data.filter);
+  const verdicts = new Map(result.signoff.rows.map(row=>[row.object_id,row.verdict]));
+  const rows = result.drift.rows.filter(row=>data.filter==='all'||row.state===data.filter||verdicts.get(row.object_id)===data.filter);
   const current = rows.find(row=>row.object_id===data.object) ?? rows[0];
   data.object=current?.object_id;
-  $('#metrics').innerHTML=[['原件',summary.originals,''],['两副本齐全',summary.verified,'verified'],['待补',summary.pending,'pending'],['冲突',summary.conflict,'conflict'],['已验副本',summary.verified_copies,'']].map(([label,value,className])=>`<div class="metric ${className}"><span>${label}</span><strong>${value}</strong></div>`).join('');
+  $('#metrics').innerHTML=[['原件',summary.originals,''],['两副本齐全',summary.verified,'verified'],['待补',summary.pending,'pending'],['冲突',summary.conflict,'conflict'],['已验副本',summary.verified_copies,''],['可签收',result.signoff.totals.signable,'verified'],['隔离观察',result.signoff.totals.quarantine,'pending']].map(([label,value,className])=>`<div class="metric ${className}"><span>${label}</span><strong>${value}</strong></div>`).join('');
   $('#batch-name').textContent=result.batch; $('#policy').textContent=result.batches.selected ?? '无唯一规则';
   $('#matrix').innerHTML=matrix(rows,data.object); $('#matrix-count').textContent=`${rows.length} / ${summary.originals} 件原件`;
   $('#section-title').textContent=modules[section]; $('#inspector').innerHTML=inspect(current);
@@ -49,9 +54,10 @@ function paint() {
 function vault() {
   const run = data.run;
   if (!run) return '<p class="empty">运行验收后生成封存凭证。</p><button data-history>查询历史</button><div id="history"></div>';
-  return `<div class="stamp"><strong>${safe(run.manifest.batch)}</strong><code>${safe(run.manifest.digest)}</code>${list([['生成时间',run.manifest.generated_at],['原件归类',run.result.reconcile.status==='MATCHED'?'已对平':'待复核']])}</div>
+  const totals = run.result.signoff.totals;
+  return `<div class="stamp"><strong>${safe(run.manifest.batch)}</strong><code>${safe(run.manifest.digest)}</code>${list([['生成时间',run.manifest.generated_at],['原件归类',run.result.reconcile.status==='MATCHED'?'已对平':'待复核'],['可签收',`${totals.signable} 件`],['隔离观察',`${totals.quarantine} 件`]])}</div>
   <div class="review-actions"><button data-replay>复算快照</button><a class="file-link" href="/api/runs/${safe(run.id)}/export">下载封存证据</a><button data-history>查询历史</button></div>
-  ${run.signature ? `<p>已封存 · ${safe(run.signature.reviewer)}</p>` : '<form class="receipt-entry" id="sign"><label>复核人 <input name="reviewer" maxlength="100" required></label><button>签署封存</button></form>'}<div id="history"></div>`;
+  ${run.signature ? `<p>已封存 · ${safe(run.signature.reviewer)} · 签收范围 ${safe(run.signature.signable)} 件</p>` : '<form class="receipt-entry" id="sign"><label>复核人 <input name="reviewer" maxlength="100" required></label><button>签署封存</button></form>'}<div id="history"></div>`;
 }
 async function request(path, payload) {
   const response = await fetch(path,payload===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});

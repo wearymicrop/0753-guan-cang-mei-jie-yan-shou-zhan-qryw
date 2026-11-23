@@ -33,5 +33,6 @@ def sign(ledger, ident, body):
     if previous["manifest"]["digest"] != body.get("digest"):
         raise DomainError("STALE_DIGEST", "摘要已变化，请重新打开凭证", 409)
     receipt = {"reviewer": body["reviewer"].strip(), "digest": body["digest"],
-               "id": ident, "balance": previous["result"]["reconcile"]["status"]}
+               "id": ident, "balance": previous["result"]["reconcile"]["status"],
+               "signable": previous["result"]["signoff"]["totals"]["signable"]}
     return ledger.sign(ident, receipt)
